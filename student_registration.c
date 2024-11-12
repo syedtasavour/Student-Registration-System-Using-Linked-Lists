@@ -1,34 +1,46 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
 
-// Structure definitions
-struct Student {
-    int studentId;
-    char name[50];
+#define MAX_NAME_LENGTH 50
+#define MAX_CLASS_LENGTH 20
+#define MAX_DEPARTMENT_LENGTH 50
+#define MAX_CONTACT_LENGTH 50
+
+typedef struct Student {
+    int id;
+    char name[MAX_NAME_LENGTH];
     int age;
-    char class[20];
-    char department[50];
-    char contact[50];
+    char class[MAX_CLASS_LENGTH];
+    char department[MAX_DEPARTMENT_LENGTH];
+    char contact[MAX_CONTACT_LENGTH];
     struct Student* next;
-};
+} Student;
 
-// Function declarations
-struct Student* addStudent(struct Student* head);
-void viewAllStudents(struct Student* head);
-void searchStudent(struct Student* head);
-void updateStudent(struct Student* head);
-void deleteStudent(struct Student** head);
-void countStudents(struct Student* head);
-int isIdUnique(struct Student* head, int id);
+// Function prototypes
+Student* addStudent(Student* head, int id, const char* name, int age, const char* class, const char* department, const char* contact);
+void viewAllStudents(Student* head);
+Student* searchStudent(Student* head, int id);
+void updateStudent(Student* head, int id);
+Student* deleteStudent(Student* head, int id);
+int countStudents(Student* head);
+bool isValidEmail(const char* email);
+bool isValidPhone(const char* phone);
 void clearInputBuffer();
+bool isValidName(const char* name);
+bool isValidAge(int age);
+bool isValidClass(const char* class);
+bool isValidDepartment(const char* department);
 
 int main() {
-    struct Student* head = NULL;
-    int choice;
+    Student* head = NULL;
+    int choice, id, age;
+    char name[MAX_NAME_LENGTH], class[MAX_CLASS_LENGTH], department[MAX_DEPARTMENT_LENGTH], contact[MAX_CONTACT_LENGTH];
 
-    do {
-        printf("\n=== Student Registration System ===\n");
+    while (1) {
+        printf("\nStudent Registration System\n");
         printf("1. Add Student\n");
         printf("2. View All Students\n");
         printf("3. Search Student\n");
@@ -37,252 +49,332 @@ int main() {
         printf("6. Count Total Students\n");
         printf("7. Exit\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
-        clearInputBuffer();
+        
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input. Please enter a number.\n");
+            clearInputBuffer();
+            continue;
+        }
 
         switch (choice) {
             case 1:
-                head = addStudent(head);
+                printf("Enter Student ID: ");
+                if (scanf("%d", &id) != 1 || id <= 0) {
+                    printf("Invalid ID. Please enter a positive integer.\n");
+                    clearInputBuffer();
+                    break;
+                }
+
+                printf("Enter Name: ");
+                clearInputBuffer();
+                fgets(name, sizeof(name), stdin);
+                name[strcspn(name, "\n")] = 0;
+                if (!isValidName(name)) {
+                    printf("Invalid name. Please use only letters, spaces, and hyphens.\n");
+                    break;
+                }
+
+                printf("Enter Age: ");
+                if (scanf("%d", &age) != 1 || !isValidAge(age)) {
+                    printf("Invalid age. Please enter a number between 15 and 100.\n");
+                    clearInputBuffer();
+                    break;
+                }
+
+                printf("Enter Class: ");
+                clearInputBuffer();
+                fgets(class, sizeof(class), stdin);
+                class[strcspn(class, "\n")] = 0;
+                if (!isValidClass(class)) {
+                    printf("Invalid class. Please use only letters, numbers, and spaces.\n");
+                    break;
+                }
+
+                printf("Enter Department: ");
+                fgets(department, sizeof(department), stdin);
+                department[strcspn(department, "\n")] = 0;
+                if (!isValidDepartment(department)) {
+                    printf("Invalid department. Please use only letters, spaces, and hyphens.\n");
+                    break;
+                }
+
+                printf("Enter Contact (email or phone): ");
+                fgets(contact, sizeof(contact), stdin);
+                contact[strcspn(contact, "\n")] = 0;
+                
+                if (isValidEmail(contact) || isValidPhone(contact)) {
+                    head = addStudent(head, id, name, age, class, department, contact);
+                } else {
+                    printf("Invalid contact information. Please enter a valid email or phone number.\n");
+                }
                 break;
             case 2:
                 viewAllStudents(head);
                 break;
             case 3:
-                searchStudent(head);
+                printf("Enter Student ID to search: ");
+                if (scanf("%d", &id) != 1 || id <= 0) {
+                    printf("Invalid ID. Please enter a positive integer.\n");
+                    clearInputBuffer();
+                    break;
+                }
+                Student* found = searchStudent(head, id);
+                if (found) {
+                    printf("Student found:\n");
+                    printf("ID: %d, Name: %s, Age: %d, Class: %s, Department: %s, Contact: %s\n",
+                           found->id, found->name, found->age, found->class, found->department, found->contact);
+                } else {
+                    printf("Student not found.\n");
+                }
                 break;
             case 4:
-                updateStudent(head);
+                printf("Enter Student ID to update: ");
+                if (scanf("%d", &id) != 1 || id <= 0) {
+                    printf("Invalid ID. Please enter a positive integer.\n");
+                    clearInputBuffer();
+                    break;
+                }
+                updateStudent(head, id);
                 break;
             case 5:
-                deleteStudent(&head);
+                printf("Enter Student ID to delete: ");
+                if (scanf("%d", &id) != 1 || id <= 0) {
+                    printf("Invalid ID. Please enter a positive integer.\n");
+                    clearInputBuffer();
+                    break;
+                }
+                head = deleteStudent(head, id);
                 break;
             case 6:
-                countStudents(head);
+                printf("Total number of students: %d\n", countStudents(head));
                 break;
             case 7:
-                printf("Exiting program...\n");
-                break;
+                // Free allocated memory before exiting
+                while (head != NULL) {
+                    Student* temp = head;
+                    head = head->next;
+                    free(temp);
+                }
+                printf("Exiting program.\n");
+                return 0;
             default:
-                printf("Invalid choice! Please try again.\n");
+                printf("Invalid choice. Please try again.\n");
         }
-    } while (choice != 7);
-
-    // Free memory before exiting
-    struct Student* current = head;
-    while (current != NULL) {
-        struct Student* temp = current;
-        current = current->next;
-        free(temp);
     }
 
     return 0;
 }
 
-// Utility function to clear input buffer
+Student* addStudent(Student* head, int id, const char* name, int age, const char* class, const char* department, const char* contact) {
+    if (searchStudent(head, id) != NULL) {
+        printf("A student with ID %d already exists. Cannot add duplicate.\n", id);
+        return head;
+    }
+
+    Student* newStudent = (Student*)malloc(sizeof(Student));
+    if (newStudent == NULL) {
+        printf("Memory allocation failed. Cannot add student.\n");
+        return head;
+    }
+
+    newStudent->id = id;
+    strncpy(newStudent->name, name, MAX_NAME_LENGTH - 1);
+    newStudent->name[MAX_NAME_LENGTH - 1] = '\0';
+    newStudent->age = age;
+    strncpy(newStudent->class, class, MAX_CLASS_LENGTH - 1);
+    newStudent->class[MAX_CLASS_LENGTH - 1] = '\0';
+    strncpy(newStudent->department, department, MAX_DEPARTMENT_LENGTH - 1);
+    newStudent->department[MAX_DEPARTMENT_LENGTH - 1] = '\0';
+    strncpy(newStudent->contact, contact, MAX_CONTACT_LENGTH - 1);
+    newStudent->contact[MAX_CONTACT_LENGTH - 1] = '\0';
+    newStudent->next = head;
+    printf("Student added successfully.\n");
+    return newStudent;
+}
+
+void viewAllStudents(Student* head) {
+    if (head == NULL) {
+        printf("No students in the system.\n");
+        return;
+    }
+
+    printf("All Students:\n");
+    while (head != NULL) {
+        printf("ID: %d, Name: %s, Age: %d, Class: %s, Department: %s, Contact: %s\n",
+               head->id, head->name, head->age, head->class, head->department, head->contact);
+        head = head->next;
+    }
+}
+
+Student* searchStudent(Student* head, int id) {
+    while (head != NULL) {
+        if (head->id == id) {
+            return head;
+        }
+        head = head->next;
+    }
+    return NULL;
+}
+
+void updateStudent(Student* head, int id) {
+    Student* student = searchStudent(head, id);
+    if (student == NULL) {
+        printf("Student with ID %d not found.\n", id);
+        return;
+    }
+
+    printf("Updating student with ID %d\n", id);
+    char input[MAX_NAME_LENGTH];
+
+    printf("Enter new Name (or press enter to keep current): ");
+    clearInputBuffer();
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = 0;
+        if (input[0] != '\0') {
+            if (isValidName(input)) {
+                strncpy(student->name, input, MAX_NAME_LENGTH - 1);
+                student->name[MAX_NAME_LENGTH - 1] = '\0';
+            } else {
+                printf("Invalid name. Name not updated.\n");
+            }
+        }
+    }
+
+    printf("Enter new Age (or press enter to keep current): ");
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = 0;
+        if (input[0] != '\0') {
+            int newAge = atoi(input);
+            if (isValidAge(newAge)) {
+                student->age = newAge;
+            } else {
+                printf("Invalid age. Age not updated.\n");
+            }
+        }
+    }
+
+    printf("Enter new Class (or press enter to keep current): ");
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = 0;
+        if (input[0] != '\0') {
+            if (isValidClass(input)) {
+                strncpy(student->class, input, MAX_CLASS_LENGTH - 1);
+                student->class[MAX_CLASS_LENGTH - 1] = '\0';
+            } else {
+                printf("Invalid class. Class not updated.\n");
+            }
+        }
+    }
+
+    printf("Enter new Department (or press enter to keep current): ");
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = 0;
+        if (input[0] != '\0') {
+            if (isValidDepartment(input)) {
+                strncpy(student->department, input, MAX_DEPARTMENT_LENGTH - 1);
+                student->department[MAX_DEPARTMENT_LENGTH - 1] = '\0';
+            } else {
+                printf("Invalid department. Department not updated.\n");
+            }
+        }
+    }
+
+    printf("Enter new Contact (or press enter to keep current): ");
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        input[strcspn(input, "\n")] = 0;
+        if (input[0] != '\0') {
+            if (isValidEmail(input) || isValidPhone(input)) {
+                strncpy(student->contact, input, MAX_CONTACT_LENGTH - 1);
+                student->contact[MAX_CONTACT_LENGTH - 1] = '\0';
+            } else {
+                printf("Invalid contact information. Contact not updated.\n");
+            }
+        }
+    }
+
+    printf("Student information updated successfully.\n");
+}
+
+Student* deleteStudent(Student* head, int id) {
+    Student* current = head;
+    Student* prev = NULL;
+
+    while (current != NULL && current->id != id) {
+        prev = current;
+        current = current->next;
+    }
+
+    if (current == NULL) {
+        printf("Student with ID %d not found.\n", id);
+        return head;
+    }
+
+    if (prev == NULL) {
+        head = current->next;
+    } else {
+        prev->next = current->next;
+    }
+
+    free(current);
+    printf("Student with ID %d deleted successfully.\n", id);
+    return head;
+}
+
+int countStudents(Student* head) {
+    int count = 0;
+    while (head != NULL) {
+        count++;
+        head = head->next;
+    }
+    return count;
+}
+
+bool isValidEmail(const char* email) {
+    const char* atSign = strchr(email, '@');
+    return atSign != NULL && strchr(atSign, '.') != NULL;
+}
+
+bool isValidPhone(const char* phone) {
+    int len = strlen(phone);
+    if (len != 10) return false;
+    for (int i = 0; i < len; i++) {
+        if (!isdigit(phone[i])) return false;
+    }
+    return true;
+}
+
 void clearInputBuffer() {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-// Function to add a new student
-struct Student* addStudent(struct Student* head) {
-    struct Student* newStudent = (struct Student*)malloc(sizeof(struct Student));
-    if (newStudent == NULL) {
-        printf("Memory allocation failed!\n");
-        return head;
+bool isValidName(const char* name) {
+    int len = strlen(name);
+    if (len == 0 || len > MAX_NAME_LENGTH - 1) return false;
+    for (int i = 0; i < len; i++) {
+        if (!isalpha(name[i]) && name[i] != ' ' && name[i] != '-') return false;
     }
-
-    printf("\nEnter Student Details:\n");
-    printf("Student ID: ");
-    scanf("%d", &newStudent->studentId);
-    clearInputBuffer();
-
-    if (!isIdUnique(head, newStudent->studentId)) {
-        printf("Error: Student ID already exists!\n");
-        free(newStudent);
-        return head;
-    }
-
-    printf("Name: ");
-    fgets(newStudent->name, sizeof(newStudent->name), stdin);
-    newStudent->name[strcspn(newStudent->name, "\n")] = 0;
-
-    printf("Age: ");
-    scanf("%d", &newStudent->age);
-    clearInputBuffer();
-
-    printf("Class: ");
-    fgets(newStudent->class, sizeof(newStudent->class), stdin);
-    newStudent->class[strcspn(newStudent->class, "\n")] = 0;
-
-    printf("Department: ");
-    fgets(newStudent->department, sizeof(newStudent->department), stdin);
-    newStudent->department[strcspn(newStudent->department, "\n")] = 0;
-
-    printf("Contact: ");
-    fgets(newStudent->contact, sizeof(newStudent->contact), stdin);
-    newStudent->contact[strcspn(newStudent->contact, "\n")] = 0;
-
-    newStudent->next = head;
-    printf("Student added successfully!\n");
-    return newStudent;
+    return true;
 }
 
-// Function to check if student ID is unique
-int isIdUnique(struct Student* head, int id) {
-    struct Student* current = head;
-    while (current != NULL) {
-        if (current->studentId == id) {
-            return 0;
-        }
-        current = current->next;
-    }
-    return 1;
+bool isValidAge(int age) {
+    return age >= 15 && age <= 100;
 }
 
-// Function to view all students
-void viewAllStudents(struct Student* head) {
-    if (head == NULL) {
-        printf("No students registered yet!\n");
-        return;
+bool isValidClass(const char* class) {
+    int len = strlen(class);
+    if (len == 0 || len > MAX_CLASS_LENGTH - 1) return false;
+    for (int i = 0; i < len; i++) {
+        if (!isalnum(class[i]) && class[i] != ' ') return false;
     }
-
-    printf("\n=== Student Records ===\n");
-    struct Student* current = head;
-    while (current != NULL) {
-        printf("\nStudent ID: %d\n", current->studentId);
-        printf("Name: %s\n", current->name);
-        printf("Age: %d\n", current->age);
-        printf("Class: %s\n", current->class);
-        printf("Department: %s\n", current->department);
-        printf("Contact: %s\n", current->contact);
-        printf("------------------------\n");
-        current = current->next;
-    }
+    return true;
 }
 
-// Function to search for a student
-void searchStudent(struct Student* head) {
-    if (head == NULL) {
-        printf("No students registered yet!\n");
-        return;
+bool isValidDepartment(const char* department) {
+    int len = strlen(department);
+    if (len == 0 || len > MAX_DEPARTMENT_LENGTH - 1) return false;
+    for (int i = 0; i < len; i++) {
+        if (!isalpha(department[i]) && department[i] != ' ' && department[i] != '-') return false;
     }
-
-    int searchId;
-    printf("Enter Student ID to search: ");
-    scanf("%d", &searchId);
-
-    struct Student* current = head;
-    while (current != NULL) {
-        if (current->studentId == searchId) {
-            printf("\nStudent found!\n");
-            printf("Student ID: %d\n", current->studentId);
-            printf("Name: %s\n", current->name);
-            printf("Age: %d\n", current->age);
-            printf("Class: %s\n", current->class);
-            printf("Department: %s\n", current->department);
-            printf("Contact: %s\n", current->contact);
-            return;
-        }
-        current = current->next;
-    }
-    printf("Student with ID %d not found!\n", searchId);
+    return true;
 }
-
-// Function to update student information
-void updateStudent(struct Student* head) {
-    if (head == NULL) {
-        printf("No students registered yet!\n");
-        return;
-    }
-
-    int updateId;
-    printf("Enter Student ID to update: ");
-    scanf("%d", &updateId);
-    clearInputBuffer();
-
-    struct Student* current = head;
-    while (current != NULL) {
-        if (current->studentId == updateId) {
-            printf("\nEnter new details:\n");
-            
-            printf("Name: ");
-            fgets(current->name, sizeof(current->name), stdin);
-            current->name[strcspn(current->name, "\n")] = 0;
-
-            printf("Age: ");
-            scanf("%d", &current->age);
-            clearInputBuffer();
-
-            printf("Class: ");
-            fgets(current->class, sizeof(current->class), stdin);
-            current->class[strcspn(current->class, "\n")] = 0;
-
-            printf("Department: ");
-            fgets(current->department, sizeof(current->department), stdin);
-            current->department[strcspn(current->department, "\n")] = 0;
-
-            printf("Contact: ");
-            fgets(current->contact, sizeof(current->contact), stdin);
-            current->contact[strcspn(current->contact, "\n")] = 0;
-
-            printf("Student information updated successfully!\n");
-            return;
-        }
-        current = current->next;
-    }
-    printf("Student with ID %d not found!\n", updateId);
-}
-
-// Function to delete a student
-void deleteStudent(struct Student** head) {
-    if (*head == NULL) {
-        printf("No students registered yet!\n");
-        return;
-    }
-
-    int deleteId;
-    printf("Enter Student ID to delete: ");
-    scanf("%d", &deleteId);
-
-    struct Student* current = *head;
-    struct Student* prev = NULL;
-
-    // If head node itself holds the student to be deleted
-    if (current != NULL && current->studentId == deleteId) {
-        *head = current->next;
-        free(current);
-        printf("Student deleted successfully!\n");
-        return;
-    }
-
-    // Search for the student to be deleted
-    while (current != NULL && current->studentId != deleteId) {
-        prev = current;
-        current = current->next;
-    }
-
-    // If student was not present in the list
-    if (current == NULL) {
-        printf("Student with ID %d not found!\n", deleteId);
-        return;
-    }
-
-    // Unlink the node from linked list
-    prev->next = current->next;
-    free(current);
-    printf("Student deleted successfully!\n");
-}
-
-// Function to count total students
-void countStudents(struct Student* head) {
-    int count = 0;
-    struct Student* current = head;
-    
-    while (current != NULL) {
-        count++;
-        current = current->next;
-    }
-    
-    printf("Total number of students: %d\n", count);
-} 
